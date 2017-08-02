@@ -21,11 +21,3 @@ typedef struct thread {
 	struct thread *prev;	// pointer to the previous thread
 	struct thread *next;	// pointer to the next thread
 } *Thread;
-
-/* 
- * Thread manager (queue). Uses a circular linked list.
- */
-typedef struct ThreadManager {
-	struct thread *head; // read and dequeue from this end
-	struct thread *tail; // queue onto this end
-} *ThreadManager;

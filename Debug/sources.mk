@@ -1,0 +1,21 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
+
+OBJ_SRCS := 
+ASM_SRCS := 
+C_SRCS := 
+O_SRCS := 
+S_UPPER_SRCS := 
+EXECUTABLES := 
+OBJS := 
+C_DEPS := 
+
+# Every subdirectory with source files must be described here
+SUBDIRS := \
+.metadata/.plugins/org.eclipse.cdt.make.core \
+. \
+Part1 \
+Part2 \
+Part3 \
+

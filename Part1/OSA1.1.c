@@ -1,6 +1,6 @@
 /*
  ============================================================================
- Name        : OSA1.c
+ Name        : OSA1.1.c
  Author      : Mohan Cao (mcao024)
  Version     : 1.0
  Description : Single thread implementation.
@@ -17,91 +17,61 @@
 
 Thread newThread; // the thread currently being set up
 Thread mainThread; // the main thread
-ThreadManager tm = NULL;
+Thread threads[NUMTHREADS]; // thread array
 struct sigaction setUpAction;
 
-ThreadManager loadThreadMgr(Thread*);
-Thread finishThread(ThreadManager);
+void printThreadStates();
+void scheduler(Thread origThread, Thread nextThread);
+
+void scheduler(Thread origThread, Thread nextThread){ //TODO: make scheduler work
+	if(nextThread==NULL){
+		scheduler(origThread,origThread->next);
+	}
+}
 
 /*
  * Switches execution from prevThread to nextThread.
  */
-void switcher(Thread* threadArray) {
-	if(!tm) tm = loadThreadMgr(threadArray);
-	// put threadArray into ThreadManager
-	if (tm->head->state == FINISHED) { // it has finished
-		printf("\ndisposing %d\n", tm->head->tid);
-		free(tm->head->stackAddr); // Wow!
-		finishThread(tm);
-		printThreadStates(threadArray);
-		longjmp(tm->head->environment, 1); //finishThread moves the head along by one, so essentially the same as head -> next
-	} else if (setjmp(tm->head->environment) == 0) { // so we can come back here
-		tm->head->state = READY;
-		tm->head->next->state = RUNNING;
-		printf("scheduling %d\n", tm->head->next->tid);
-		longjmp(tm->head->next->environment, 1);
+void switcher(Thread prevThread, Thread nextThread) {
+	if (prevThread->state == FINISHED) { // it has finished
+		printf("\ndisposing %d\n", prevThread->tid);
+		free(prevThread->stackAddr); // Wow!
+		printThreadStates(); // PRINTING AFTER FREEING. DOES IT WORK?
+		longjmp(nextThread->environment, 1);
+	} else if (setjmp(prevThread->environment) == 0) { // so we can come back here
+		prevThread->state = READY;
+		nextThread->state = RUNNING;
+		printf("scheduling %d\n", nextThread->tid);
+		printThreadStates();
+		longjmp(nextThread->environment, 1);
 	}
-}
-
-/*
- * Loads the ThreadManager with a thread array
- */
-ThreadManager loadThreadMgr(Thread* threadArray) {
-	int size = sizeof(threadArray)/sizeof(Thread);
-	ThreadManager tm = (ThreadManager)malloc(sizeof(ThreadManager));
-	for(int i=0;i<size;i++){
-		if(i == 0){
-			tm->head = threadArray[0];
-			tm->tail = threadArray[0];
-			threadArray[0]->prev = threadArray[0];
-			threadArray[0]->next = threadArray[0];
-			continue;
-		}
-		tm->tail->next = threadArray[i];
-		tm->head->prev = threadArray[i];
-		threadArray[i]->next = tm->head;
-		threadArray[i]->prev = tm->tail;
-		tm->tail = threadArray[i];
-	}
-	return tm;
-}
-
-/*
- * Remove the head of the queue of the ThreadManager
- */
-Thread finishThread(ThreadManager tm) {
-	Thread t = tm->head;
-	tm->tail = tm->head->next;
-	tm->head->next->prev = tm->tail;
-	tm->head = tm->head->next;
-	return t;
 }
 
 /*
  * Prints thread states
  */
-void printThreadStates(Thread* threads){
-	int size = sizeof(threads)/sizeof(Thread);
-	printf("Thread States\n");
-	printf("=============\n");
-	char* state;
-	for(int i=0;i<size;i++){
-		switch(threads[i]->state){
-			case SETUP:
-			state = "setup";
-			break;
-			case RUNNING:
-			state = "running";
-			break;
-			case READY:
-			state = "ready";
-			break;
-			case FINISHED:
-			state = "finished";
-			break;
-		}
-		printf("threadID: %d state:%s\n", threads[i]->tid, state);
-	}
+void printThreadStates(){
+    int size = sizeof(threads)/sizeof(Thread);
+    printf("Thread States\n");
+    printf("=============\n");
+    char* state;
+    for(int i=0;i<size;i++){
+        switch(threads[i]->state){
+            case SETUP:
+                state = "setup";
+                break;
+            case RUNNING:
+                state = "running";
+                break;
+            case READY:
+                state = "ready";
+                break;
+            case FINISHED:
+                state = "finished";
+                break;
+        }
+        printf("threadID: %d state:%s\n", threads[i]->tid, state);
+    }
 }
 
 /*
@@ -115,9 +85,7 @@ void associateStack(int signum) {
 	if (setjmp(localThread->environment) != 0) { // will be zero if called directly
 		(localThread->start)();
 		localThread->state = FINISHED;
-		localThread->next = mainThread;
-		mainThread->prev = localThread;
-		switcher(NULL); // at the moment back to the main thread
+		switcher(localThread, mainThread); // TODO: at the moment back to the main thread
 	}
 }
 
@@ -140,6 +108,7 @@ void setUpStackTransfer() {
  */
 Thread createThread(void (startFunc)()) {
 	static int nextTID = 0;
+	static Thread headOfList = NULL;
 	Thread thread;
 	stack_t threadStack;
 
@@ -163,12 +132,25 @@ Thread createThread(void (startFunc)()) {
 	}
 	newThread = thread; // So that the signal handler can find this thread
 	kill(getpid(), SIGUSR1); // Send the signal. After this everything is set.
+
+	//set next and prev of the circular linked list
+	if(headOfList == NULL) { // exactly 1 item in circular linked list
+		headOfList = thread;
+		headOfList->next,headOfList->prev = thread;
+	}else if(headOfList->prev==headOfList){ // exactly 2 items in circular linked list
+		headOfList->next = thread;headOfList->prev = thread;
+		thread->next = headOfList;thread->prev = headOfList;
+	}else{ // all others
+		thread->next = headOfList;thread->prev = headOfList->prev;
+		headOfList->prev->next = thread;
+		headOfList->next->prev = thread;
+	}
+
 	return thread;
 }
 
 int main(void) {
 	struct thread controller;
-	Thread threads[NUMTHREADS];
 	mainThread = &controller;
 	mainThread->state = RUNNING;
 	setUpStackTransfer();
@@ -176,10 +158,10 @@ int main(void) {
 	for (int t = 0; t < NUMTHREADS; t++) {
 		threads[t] = createThread(threadFuncs[t]);
 	}
-	printThreadStates(threads);
+    printThreadStates();
 	puts("switching to first thread");
-	switcher(threads);
+	switcher(mainThread, threads[0]);
 	puts("back to the main thread");
-	printThreadStates(threads);
+    printThreadStates();
 	return EXIT_SUCCESS;
 }
