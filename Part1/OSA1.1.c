@@ -21,12 +21,21 @@ Thread threads[NUMTHREADS]; // thread array
 struct sigaction setUpAction;
 
 void printThreadStates();
-void scheduler(Thread origThread, Thread nextThread);
+Thread scheduler(Thread origThread);
 
-void scheduler(Thread origThread, Thread nextThread){ //TODO: make scheduler work
-	if(nextThread==NULL){
-		scheduler(origThread,origThread->next);
-	}
+
+/**
+ * Transfer execution from original thread. Selects a new thread from the thread list.
+ * @param origThread
+ * @return newThread
+ */
+Thread scheduler(Thread origThread){ //TODO: make scheduler work
+    Thread t = origThread->next;
+    while(t->next != t && t->state != READY) { // While list is not a single item
+        t = t->next;
+    }
+    if(t == origThread) return NULL;
+    return t;
 }
 
 /*
@@ -36,7 +45,11 @@ void switcher(Thread prevThread, Thread nextThread) {
 	if (prevThread->state == FINISHED) { // it has finished
 		printf("\ndisposing %d\n", prevThread->tid);
 		free(prevThread->stackAddr); // Wow!
-		printThreadStates(); // PRINTING AFTER FREEING. DOES IT WORK?
+        prevThread->stackAddr = NULL;
+        // Remove the prevThread from the circular linked list
+        prevThread->prev->next = prevThread->next;
+        prevThread->next->prev = prevThread->prev;
+		printThreadStates(); // PRINTING AFTER FREEING. DOES IT WORK
 		longjmp(nextThread->environment, 1);
 	} else if (setjmp(prevThread->environment) == 0) { // so we can come back here
 		prevThread->state = READY;
@@ -85,7 +98,7 @@ void associateStack(int signum) {
 	if (setjmp(localThread->environment) != 0) { // will be zero if called directly
 		(localThread->start)();
 		localThread->state = FINISHED;
-		switcher(localThread, mainThread); // TODO: at the moment back to the main thread
+		scheduler(localThread); // TODO: at the moment back to the main thread, should remove the current thread from the schedule and allocate next one
 	}
 }
 
