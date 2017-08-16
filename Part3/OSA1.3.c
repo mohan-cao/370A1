@@ -1,6 +1,6 @@
 /*
  ============================================================================
- Name        : OSA1.1.c
+ Name        : OSA1.2.c
  Author      : Mohan Cao (mcao024)
  Version     : 1.0
  Description : Single thread implementation.
@@ -11,40 +11,72 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <memory.h>
 
 #include "littleThread.h"
-#include "threads0.c" // rename this for different threads
+#include "threads3.c" // rename this for different threads
 
 Thread newThread; // the thread currently being set up
 Thread mainThread; // the main thread
 Thread threads[NUMTHREADS]; // thread array
+
+static Thread currentThread = NULL;
+volatile static int finished = 0;
 struct sigaction setUpAction;
+
+struct sigaction timerAction;
+struct itimerval timerInterval;
 
 void printThreadStates();
 void scheduler(Thread origThread);
 void switcher(Thread prevThread, Thread nextThread);
+
+void threadYield(){
+    scheduler(currentThread);
+}
+
+void timerHandler(int signum){
+    puts("oh it works");
+    //scheduler(currentThread);
+}
+
+void setUpTimer(){
+    memset(&timerAction,0,sizeof(timerAction));
+    timerAction.sa_handler = (void*) timerHandler;
+    timerInterval.it_value.tv_sec = 0;
+    timerInterval.it_value.tv_usec = 20000;
+    timerInterval.it_interval.tv_sec = 0;
+    timerInterval.it_interval.tv_usec = 20000;
+    sigaction(SIGVTALRM,&timerAction,NULL);
+
+    if(setitimer(ITIMER_VIRTUAL,&timerInterval,NULL) != 0) exit(EXIT_FAILURE);
+    //while(!finished){}
+}
 
 /**
  * Transfer execution from original thread. Selects a new thread from the thread list.
  * @param origThread
  */
 void scheduler(Thread origThread){
-    static Thread currentThread = NULL;
     Thread t;
-    if(currentThread==NULL){
+    if(currentThread==NULL&&origThread!=NULL){
         t = origThread->next;
         currentThread = t;
     }else if(origThread==NULL&&currentThread!=NULL){
         origThread = currentThread;
         t = origThread->next;
     }else{
-        t = origThread->next;
+        t = currentThread->next;
     }
     while(t->next != t && t->state != READY) { // While list is not a single item and has not found a READY thread
         t = t->next;
     }
     currentThread = t;
-    if(t->next==t) switcher(origThread,mainThread);
+    if(t->next==t) {
+        switcher(origThread,mainThread);
+        finished = 1;
+    }
     switcher(origThread,t);
 }
 
@@ -184,9 +216,11 @@ int main(void) {
         threads[t] = createThread(threadFuncs[t]);
     }
     mainThread->next = threads[0];
+    currentThread = mainThread;
+    setUpTimer();
     printThreadStates();
     puts("switching to first thread\n");
-    scheduler(mainThread);
+    //scheduler(mainThread);
     puts("back to the main thread\n");
     printThreadStates();
     return EXIT_SUCCESS;

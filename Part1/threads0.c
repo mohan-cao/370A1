@@ -8,7 +8,6 @@ void thread1() {
 	int i;
 	for (i = 0; i < 5; i++)
 		puts("hi");
-    thread2();
 }
 
 void thread2() { 
@@ -17,8 +16,8 @@ void thread2() {
 		puts("bye");
 }
 
-const int NUMTHREADS = 2;
+const int NUMTHREADS = 3;
 
 typedef void (*threadPtr)();
 
-threadPtr threadFuncs[] = {thread1, thread2};
+threadPtr threadFuncs[] = {thread1, thread2, thread2};
