@@ -17,7 +17,7 @@
 
 Thread newThread; // the thread currently being set up
 Thread mainThread; // the main thread
-Thread threads[NUMTHREADS]; // thread array
+Thread* threads; // thread array
 struct sigaction setUpAction;
 
 void printThreadStates();
@@ -79,7 +79,7 @@ void switcher(Thread prevThread, Thread nextThread) {
  * Prints thread states
  */
 void printThreadStates(){
-    int size = sizeof(threads)/sizeof(Thread);
+    int size = NUMTHREADS;
     printf("Thread States\n");
     printf("=============\n");
     char* state;
@@ -179,6 +179,7 @@ Thread createThread(void (startFunc)()) {
 }
 
 int main(void) {
+    threads = malloc((sizeof(Thread) * NUMTHREADS));
     struct thread controller;
     mainThread = &controller;
     mainThread->state = RUNNING;

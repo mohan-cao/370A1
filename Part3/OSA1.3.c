@@ -1,6 +1,6 @@
 /*
  ============================================================================
- Name        : OSA1.2.c
+ Name        : OSA1.3.c
  Author      : Mohan Cao (mcao024)
  Version     : 1.0
  Description : Single thread implementation.
@@ -19,7 +19,7 @@
 
 Thread newThread; // the thread currently being set up
 Thread mainThread; // the main thread
-Thread threads[NUMTHREADS]; // thread array
+Thread *threads; // thread array
 
 static Thread currentThread = NULL;
 volatile static int finished = 0;
@@ -37,8 +37,7 @@ void threadYield(){
 }
 
 void timerHandler(int signum){
-    puts("oh it works");
-    //scheduler(currentThread);
+    scheduler(currentThread);
 }
 
 void setUpTimer(){
@@ -51,7 +50,7 @@ void setUpTimer(){
     sigaction(SIGVTALRM,&timerAction,NULL);
 
     if(setitimer(ITIMER_VIRTUAL,&timerInterval,NULL) != 0) exit(EXIT_FAILURE);
-    //while(!finished){}
+    while(!finished){}
 }
 
 /**
@@ -74,10 +73,11 @@ void scheduler(Thread origThread){
     }
     currentThread = t;
     if(t->next==t) {
+        if(t->next->state != FINISHED) return;
         switcher(origThread,mainThread);
         finished = 1;
     }
-    switcher(origThread,t);
+    if(origThread!=t) switcher(origThread,t);
 }
 
 /*
@@ -107,7 +107,7 @@ void switcher(Thread prevThread, Thread nextThread) {
  * Prints thread states
  */
 void printThreadStates(){
-    int size = sizeof(threads)/sizeof(Thread);
+    int size = NUMTHREADS;
     printf("Thread States\n");
     printf("=============\n");
     char* state;
@@ -207,6 +207,7 @@ Thread createThread(void (startFunc)()) {
 }
 
 int main(void) {
+    threads = malloc((sizeof(Thread) * NUMTHREADS));
     struct thread controller;
     mainThread = &controller;
     mainThread->state = RUNNING;
@@ -217,9 +218,10 @@ int main(void) {
     }
     mainThread->next = threads[0];
     currentThread = mainThread;
-    setUpTimer();
+
     printThreadStates();
     puts("switching to first thread\n");
+    setUpTimer();
     //scheduler(mainThread);
     puts("back to the main thread\n");
     printThreadStates();
