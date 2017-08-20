@@ -1,7 +1,7 @@
 /*
  ============================================================================
  Name        : littleThread.h
- Author      : Mohan Cao (mcao024)
+ Author      : Robert Sheehan
  Version     : 1.0
  Description : header file for OS assignment 1 2017
  ============================================================================
