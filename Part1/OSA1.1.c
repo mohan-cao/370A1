@@ -13,7 +13,7 @@
 #include <unistd.h>
 
 #include "littleThread.h"
-#include "threads0.c" // rename this for different threads
+#include "threads1.c" // rename this for different threads
 
 Thread newThread; // the thread currently being set up
 Thread mainThread; // the main thread
