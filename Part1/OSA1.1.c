@@ -110,7 +110,7 @@ void associateStack(int signum) {
     if (setjmp(localThread->environment) != 0) { // will be zero if called directly
         (localThread->start)();
         localThread->state = FINISHED;
-        scheduler(localThread); // TODO: at the moment back to the main thread, should remove the current thread from the schedule and allocate next one
+        scheduler(localThread);
     }
 }
 

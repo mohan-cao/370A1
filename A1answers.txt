@@ -1,0 +1,7 @@
+1) Future calls to switcher will cause freeing of unallocated memory. We free the memory allocated to the stack, but we don't move the pointer to NULL to indicate that the memory is freed (and also doing a NULL check).
+```c
+if(prevThread->stackAddr != NULL) free(prevThread->stackAddr);
+prevThread->stackAddr = NULL;
+```
+2) The preemptive scheduler would finish the entire thread call in one go similar to the one in Part 1, as we have operations finishing under 20ms. There would be no observable difference then between Part 1 and 3.
+3) rand() is not thread-safe. This means that calls to rand from different threads in different contexts may lead to undefined behaviour.
